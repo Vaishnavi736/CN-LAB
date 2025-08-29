@@ -1,0 +1,676 @@
+Experiment-2
+Character stuffing is a technique used in data communication (especially at the Data Link Layer) to ensure special "delimiter" characters within the data don't accidentally terminate or confuse the frame structure. Whenever a reserved character occurs within data, an extra escape character is inserted to distinguish it from an actual frame boundary.
+How the Program Works
+User Input: Accepts the string to be transmitted and the chosen start/end delimiter characters.
+Stuffing Logic: Scans through the data:
+If a data character matches the start or end delimiter, it is duplicated (i.e., "stuffed") to distinguish from real frame boundaries.
+Framing: The start and end delimiters are prepended and appended to the result.
+Output: Shows the final stuffed frame, ready for safe network transmission.
+
+Program:
+#include <stdio.h>
+#include <string.h>
+int main() {
+    char input[30], stuffed[80] = "";
+    char start_delim, end_delim;
+    char temp[3], double_start[3], double_end[3];
+    int i;
+    // Input Section
+    printf("Enter the data to be stuffed: ");
+    scanf("%s", input);
+    printf("Enter the starting delimiter character: ");
+    scanf(" %c", &start_delim);
+    printf("Enter the ending delimiter character: ");
+    scanf(" %c", &end_delim);
+    // Prepare delimiter substrings
+    double_start[0] = double_start[1] = start_delim;
+    double_start[2] = '\0';
+    double_end[0] = double_end[1] = end_delim;
+    double_end[2] = '\0';
+    // Add starting delimiter
+    strcat(stuffed, double_start);
+    // Stuffing logic
+    for(i = 0; i < strlen(input); i++) {
+        temp[0] = input[i];
+        temp[1] = '\0';
+        if(input[i] == start_delim)
+            strcat(stuffed, double_start);  // Stuff start delimiter again
+        else if(input[i] == end_delim)
+            strcat(stuffed, double_end);    // Stuff end delimiter again
+        else
+            strcat(stuffed, temp);
+    }
+    // Add ending delimiter
+    strcat(stuffed, double_end);
+
+    printf("Data after character stuffing: %s\n", stuffed);
+
+    return 0;
+}
+
+
+Output 1:
+Enter the data to be stuffed: goodday
+Enter the starting delimiter character: d
+Enter the ending delimiter character: g
+Data after character stuffing: dggooddddayg
+
+
+Output 2:
+Enter the data to be stuffed: VITCSE
+Enter the starting delimiter character: A
+Enter the ending delimiter character: Z
+Data after character stuffing: AAVITCSEZZ
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(b) Bit Stuffing: 
+Bit stuffing is used in data communications to ensure a predefined pattern (like a flag 01111110 in HDLC protocols) does not accidentally appear in data. The rule for most protocols is: after five consecutive 1s in the data, insert a 0.
+
+How It Works
+Input: The user provides the original bit stream.
+Logic: The program copies each bit to the output. If it finds five consecutive 1s, it inserts a 0 immediately after.
+Output: Shows the bit-stuffed stream ready for transmission.
+
+Program:
+#include <stdio.h>
+#include <string.h>
+int main() {
+    char input[100], stuffed[200];
+    int i, j = 0, count = 0;
+    printf("Enter the bit stream (only 0s and 1s): ");
+    scanf("%s", input);
+    int len = strlen(input);
+    for(i = 0; i < len; i++) {
+        stuffed[j++] = input[i];
+
+        if(input[i] == '1') {
+            count++;
+            if(count == 5) {
+                stuffed[j++] = '0'; // Insert a 0 after five consecutive 1s
+                count = 0;          // Reset the count
+            }
+        } else {
+            count = 0; // Reset if the current bit is 0
+        }
+    }
+    stuffed[j] = '\0';
+    printf("Bit-stuffed output: %s\n", stuffed);
+    return 0;
+}
+
+Output 1:
+Enter the bit stream (only 0s and 1s): 0111111011
+Bit-stuffed output: 01111101011
+
+
+Output 2:
+Enter the bit stream (only 0s and 1s): 01111110
+Bit-stuffed output: 011111010
+
+
+
+
+
+
+
+
+
+Experiment-3
+write a program to implement data link layer framing method checksum.
+Description: The checksum method is widely used in data link layer protocols for error detection. A checksum is calculated over the data and appended to the frame. The receiver recalculates the checksum and compares it with the received one to detect errors introduced during transmission.
+Explanation:
+Framing: Uses 0x7E as the start-of-frame (SOF) and 0x7F as the end-of-frame (EOF) delimiter bytes (can be set as per protocol).
+Checksum Calculation: Sums all data bytes modulo 256 (one-byte checksum).
+Sender: Packs data, checksum, and delimiters into a frame.
+Receiver: Checks frame delimiters, extracts data, recalculates checksum, and compares with received checksum.
+Error Detection: If frame structure or checksum doesn't match, an error is detected.
+
+Program:
+#include <stdio.h>
+#include <string.h>
+
+// Function to calculate checksum (simple byte-sum modulo 256)
+unsigned char calculate_checksum(const char *data) {
+    unsigned int sum = 0;
+    for (int i = 0; data[i] != '\0'; i++) {
+        sum += (unsigned char)data[i];
+    }
+    return (unsigned char)(sum % 256); // Modulo 256 for one-byte checksum
+}
+
+// Function to simulate transmission (framing and checksum)
+void send_frame(const char *data, unsigned char *frame, int *frame_len) {
+    unsigned char checksum = calculate_checksum(data);
+    int data_len = strlen(data);
+
+    // Frame format: | SOF (Start of Frame) | DATA | CHECKSUM | EOF (End of Frame) |
+    frame[0] = 0x7E; // SOF byte (01111110 in HDLC)
+    memcpy(&frame[1], data, data_len);
+    frame[1 + data_len] = checksum;
+    frame[2 + data_len] = 0x7F; // EOF byte (arbitrary choice)
+    *frame_len = 3 + data_len;
+}
+
+// Function to simulate receiver frame check
+int receive_frame(const unsigned char *frame, int frame_len, char *out_data) {
+    if (frame[0] != 0x7E || frame[frame_len - 1] != 0x7F) {
+        printf("Frame error: Invalid framing bytes.\n");
+        return 0;
+    }
+    int data_len = frame_len - 3;
+    memcpy(out_data, &frame[1], data_len);
+    out_data[data_len] = '\0';
+    unsigned char received_checksum = frame[1 + data_len];
+    unsigned char calc_checksum = calculate_checksum(out_data);
+    if (received_checksum != calc_checksum) {
+        printf("Checksum error!\n");
+        return 0;
+    }
+    return 1;
+}
+
+int main() {
+    char data[100];
+    unsigned char frame[110];
+    char received_data[100];
+    int frame_len;
+
+    // Sender Side
+    printf("Enter data to send: ");
+    scanf("%s", data);
+    send_frame(data, frame, &frame_len);
+
+    printf("Transmitted Frame (in hex): ");
+    for (int i = 0; i < frame_len; i++)
+        printf("%02X ", frame[i]);
+    printf("\n");
+ // (Change third character in data)
+//frame[3] = 0x4D;
+    // Receiver Side
+    if (receive_frame(frame, frame_len, received_data)) {
+        printf("Received data: %s\n", received_data);
+        printf("No error detected in frame.\n");
+    }
+    return 0;
+}
+
+Output 1:
+Enter data to send: HELLO
+Transmitted Frame (in hex): 7E 48 45 4C 4C 4F 26 7F 
+Received data: HELLO
+No error detected in frame.
+
+Output 2:
+Enter data to send: Hello
+Transmitted Frame (in hex): 7E 48 65 6C 6C 6F F4 7F 
+Checksum error!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Experiment-4
+Write a program for Hamming-Code generation for error detection and correction.
+
+Program:
+#include <stdio.h>
+// Function to calculate parity bits and generate Hamming code
+void generateHammingCode(int data[], int hcode[]) {
+    // Assign data bits to proper positions in the code
+    // Positions: 1 2 3 4 5 6 7 (P1,P2,D1,P4,D2,D3,D4)
+    hcode[2] = data[0]; // D1
+    hcode[4] = data[1]; // D2
+    hcode[5] = data[2]; // D3
+    hcode[6] = data[3]; // D4
+    // Calculate parity bits for even parity
+    hcode[0] = hcode[2] ^ hcode[4] ^ hcode[6]; // P1
+    hcode[1] = hcode[2] ^ hcode[5] ^ hcode[6]; // P2
+    hcode[3] = hcode[4] ^ hcode[5] ^ hcode[6]; // P4
+}
+
+int main() {
+    int data[4], hcode[7];
+    printf("Enter 4 data bits (space-separated): ");
+    for(int i = 0; i < 4; i++)
+        scanf("%d", &data[i]);
+    generateHammingCode(data, hcode);
+
+    printf("Generated 7-bit Hamming code: ");
+    for(int i = 0; i < 7; i++)
+        printf("%d ", hcode[i]);
+    printf("\n");
+
+    // Optionally simulate an error
+    char opt;
+    printf("Simulate error? (y/n): ");
+    scanf(" %c", &opt);
+    if(opt == 'y' || opt == 'Y') {
+        int pos;
+        printf("Enter bit position to flip (1-7): ");
+        scanf("%d", &pos);
+        if(pos >= 1 && pos <=7) {
+            hcode[pos-1] ^= 1;
+            printf("Codeword after error: ");
+            for(int i = 0; i < 7; i++)
+                printf("%d ", hcode[i]);
+            printf("\n");
+        }
+    }
+    // Decode: error detection and correction
+    int p[3];
+    // parity checks: P1 (positions 0,2,4,6), P2 (1,2,5,6), P4 (3,4,5,6)
+    p[0] = hcode[0] ^ hcode[2] ^ hcode[4] ^ hcode[6];
+    p[1] = hcode[1] ^ hcode[2] ^ hcode[5] ^ hcode[6];
+    p[2] = hcode[3] ^ hcode[4] ^ hcode[5] ^ hcode[6];
+    int error_pos = p[2]*4 + p[1]*2 + p[0]*1; // binary to decimal
+    if(error_pos == 0) {
+        printf("No error detected in received code.\n");
+    } else {
+        printf("Error detected at bit position %d (counting from 1).\n", error_pos);
+        hcode[error_pos-1] ^= 1; // Correct error
+        printf("Corrected code: ");
+        for(int i = 0; i < 7; i++)
+            printf("%d ", hcode[i]);
+        printf("\n");
+    }
+    printf("Extracted data bits: %d %d %d %d\n", hcode[2], hcode[4], hcode[5], hcode[6]);
+
+    return 0;
+}
+
+Output 1:
+Enter 4 data bits (space-separated): 1 0 0 1
+Generated 7-bit Hamming code: 0 0 1 1 0 0 1 
+Simulate error? (y/n): n
+No error detected in received code.
+Extracted data bits: 1 0 0 1
+
+
+
+
+
+
+
+
+Output 2:
+Enter 4 data bits (space-separated): 1 0 0 1
+Generated 7-bit Hamming code: 0 0 1 1 0 0 1 
+Simulate error? (y/n): y
+Enter bit position to flip (1-7): 4
+ERROR!
+Codeword after error: 0 0 1 0 0 0 1 
+Error detected at bit position 4 (counting from 1).
+Corrected code: 0 0 1 1 0 0 1 
+Extracted data bits: 1 0 0 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Experiment-5
+Write a program to implement on a data set of characters the three CRC polynomials CRC 12, CRC 16, CRC CCIP
+Note: 
+CRC-12: x¹² + x¹¹ + x³ + x² + x + 1 (poly: 0x180F, used e.g. in SDLC)
+CRC-16: x¹⁶ + x¹⁵ + x² + 1 (poly: 0x8005, common CRC-16-IBM)
+CRC-CCITT (CRC-16-CCITT): x¹⁶ + x¹² + x⁵ + 1 (poly: 0x1021)
+
+Program:
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+// initial CRC values
+#define CRC16_INIT      0x0000
+#define CRCCCITT_INIT   0xFFFF
+#define CRC12_INIT      0x000
+
+// CRC-12: x^12 + x^11 + x^3 + x^2 + x + 1 = 0x180F
+uint16_t crc12(const uint8_t *data, size_t len) {
+    uint16_t crc = CRC12_INIT;
+    uint16_t poly = 0x180F; // 0001 1000 0000 1111
+
+    for (size_t i = 0; i < len; i++) {
+        crc ^= data[i] << 4;    // Align data with high end of crc (data is 8 bits, CRC is 12 bits)
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x800)    // If highest (12th) bit is set
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+            crc &= 0xFFF;       // Mask to 12 bits
+        }
+    }
+    return crc;
+}
+
+// CRC-16: x^16 + x^15 + x^2 + 1 = 0x8005 (CRC-16-IBM)
+uint16_t crc16(const uint8_t *data, size_t len) {
+    uint16_t crc = CRC16_INIT;
+    uint16_t poly = 0x8005; // 1000 0000 0000 0101
+
+    for (size_t i = 0; i < len; i++) {
+        crc ^= data[i] << 8;
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
+// CRC-CCITT: x^16 + x^12 + x^5 + 1 = 0x1021
+uint16_t crc_ccitt(const uint8_t *data, size_t len) {
+    uint16_t crc = CRCCCITT_INIT;
+    uint16_t poly = 0x1021;
+
+    for (size_t i = 0; i < len; i++) {
+        crc ^= data[i] << 8;
+        for (int j = 0; j < 8; j++) {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ poly;
+            else
+                crc <<= 1;
+        }
+    }
+    return crc;
+}
+
+int main() {
+    char input[128];
+    printf("Enter the data string: ");
+    scanf("%127s", input);
+
+    size_t len = strlen(input);
+
+    uint16_t c12 = crc12((uint8_t*)input, len);
+    uint16_t c16 = crc16((uint8_t*)input, len);
+    uint16_t cccitt = crc_ccitt((uint8_t*)input, len);
+
+    printf("\nCRC Results:\n");
+    printf("CRC-12:    0x%03X (12 bits)\n", c12);
+    printf("CRC-16:    0x%04X (16 bits)\n", c16);
+    printf("CRC-CCITT: 0x%04X (16 bits)\n", cccitt);
+
+    return 0;
+}
+
+Output 1:
+Enter the data string: 1101011011
+CRC Results:
+CRC-12:    0xD47 (12 bits)
+CRC-16:    0x0496 (16 bits)
+CRC-CCITT: 0x9DEB (16 bits)
+
+Output 2:
+Enter the data string: 1010000
+
+CRC Results:
+CRC-12:    0x7F2 (12 bits)
+CRC-16:    0x59B1 (16 bits)
+CRC-CCITT: 0x439B (16 bits)
+
+
+
+
+
+
+Experiment-6
+Write a program to implement Sliding Window Protocol for Go-Back-N.
+
+Program:
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define MAX_FRAMES 50
+#define WINDOW_SIZE 4
+
+// Randomly decide if a frame is lost (simulate error)
+int is_frame_lost() {
+    // 20% loss chance
+    return (rand() % 5) == 0;
+}
+
+int main() {
+    int total_frames, sent = 0, ack = 0, to_send, i;
+
+    srand((unsigned)time(NULL));
+    printf("Enter total number of frames to send (max %d): ", MAX_FRAMES);
+    scanf("%d", &total_frames);
+
+    printf("\n--- Sending frames using Go-Back-N with window size %d ---\n", WINDOW_SIZE);
+
+    while (ack < total_frames) {
+        // Determine how many frames can be sent in this window
+        to_send = 0;
+        for (i = 0; i < WINDOW_SIZE && sent + i < total_frames; i++)
+            to_send++;
+
+        printf("\nSender window: [");
+        for (i = 0; i < to_send; i++)
+            printf("%d ", sent + i + 1);
+        printf("]\n");
+
+        // Simulate sending frames in the window
+        int error_index = -1;
+        for (i = 0; i < to_send; i++) {
+            if (is_frame_lost()) {
+                printf("Frame %d lost or corrupted!\n", sent + i + 1);
+                error_index = i;
+                break;
+            } else {
+                printf("Frame %d sent successfully.\n", sent + i + 1);
+            }
+        }
+        // Receiver logic
+        if (error_index == -1) {
+            // All frames received correctly, ACK all
+            printf("Receiver: ACK for all %d frames.\n", to_send);
+            sent += to_send;
+            ack += to_send;
+        } else {
+            // NACK for erroneous frame and all after it: Go-Back-N
+            printf("Receiver: NACK for frame %d. Go-Back-N triggered.\n", sent + error_index + 1);
+            printf("Receiver: Discards all frames after and incl. frame %d.\n", sent + error_index + 1);
+            // Resend from the error frame
+            sent += error_index;
+            ack += error_index;
+        }
+    }
+
+    printf("\nAll frames sent and acknowledged successfully!\n");
+    return 0;
+}
+
+Output 1:
+Enter total number of frames to send (max 50): 3
+
+--- Sending frames using Go-Back-N with window size 4 ---
+
+Sender window: [1 2 3 ]
+Frame 1 sent successfully.
+Frame 2 sent successfully.
+Frame 3 sent successfully.
+Receiver: ACK for all 3 frames.
+
+All frames sent and acknowledged successfully!
+
+Output 2:
+Enter total number of frames to send (max 50): 4
+
+--- Sending frames using Go-Back-N with window size 4 ---
+
+Sender window: [1 2 3 4 ]
+Frame 1 sent successfully.
+Frame 2 sent successfully.
+Frame 3 lost or corrupted!
+Receiver: NACK for frame 3. Go-Back-N triggered.
+Receiver: Discards all frames after and incl. frame 3.
+
+Sender window: [3 4 ]
+Frame 3 sent successfully.
+Frame 4 sent successfully.
+Receiver: ACK for all 2 frames.
+
+All frames sent and acknowledged successfully!
+
+
+
+
+
+
+Experiment-7
+Write a program to implement Sliding Window Protocol for Selective Repeat.
+Program:
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_FRAMES 10
+
+// Simulating frame transmission
+typedef struct {
+    int frame_no;
+    int acked; // 0: not acked, 1: acked
+} Frame;
+
+void send_frame(int frame_no) {
+    printf("Sender: Sent frame %d\n", frame_no);
+}
+
+void receive_frame(int frame_no) {
+    printf("Receiver: Received frame %d\n", frame_no);
+}
+
+void send_ack(int frame_no) {
+    printf("Receiver: Ack sent for frame %d\n", frame_no);
+}
+
+void receive_ack(int frame_no) {
+    printf("Sender: Ack received for frame %d\n", frame_no);
+}
+
+int main() {
+    int total_frames, window_size;
+    int sender_base = 0;
+    int next_frame_to_send = 0;
+    int receiver_expected = 0;
+    int ack[MAX_FRAMES] = {0};
+    Frame window[MAX_FRAMES];
+
+    printf("Enter total number of frames to send: ");
+    scanf("%d", &total_frames);
+    printf("Enter window size: ");
+    scanf("%d", &window_size);
+
+    // Initialize window
+    for(int i=0; i<total_frames; ++i) {
+        window[i].frame_no = i;
+        window[i].acked = 0;
+    }
+
+    // Sender side
+    while (sender_base < total_frames) {
+        // Send frames in window
+        while (next_frame_to_send < sender_base + window_size && next_frame_to_send < total_frames) {
+            if (window[next_frame_to_send].acked == 0) {
+                send_frame(window[next_frame_to_send].frame_no);
+            }
+            next_frame_to_send++;
+        }
+
+        // Simulate receiver randomly dropping some frames
+        int recv;
+        printf("Enter received frame number (or -1 if lost): ");
+        scanf("%d", &recv);
+
+        if (recv >= 0 && recv < total_frames && window[recv].acked == 0) {
+            receive_frame(recv);
+            send_ack(recv);
+            window[recv].acked = 1;
+        }
+        
+        // Simulate sender receiving acks (all acks up to and including the last in-order acked frame)
+        printf("Enter ack number received by sender (-1 if none): ");
+        int ack_no;
+        scanf("%d", &ack_no);
+        if (ack_no >= 0 && ack_no < total_frames && window[ack_no].acked == 1) {
+            receive_ack(ack_no);
+        }
+
+        // Slide the window for every in-order ack
+        while (sender_base < total_frames && window[sender_base].acked == 1) {
+            sender_base++;
+        }
+    }
+
+    printf("All frames sent and acknowledged!\n");
+    return 0;
+}
+
+Output 1:
+Enter total number of frames to send: 5
+Enter window size: 3
+Sender: Sent frame 0
+Sender: Sent frame 1
+Sender: Sent frame 2
+Enter received frame number (or -1 if lost): 0
+Receiver: Received frame 0
+Receiver: Ack sent for frame 0
+Enter ack number received by sender (-1 if none): 0
+Sender: Ack received for frame 0
+Sender: Sent frame 3
+Enter received frame number (or -1 if lost): 2
+Receiver: Received frame 2
+Receiver: Ack sent for frame 2
+Enter ack number received by sender (-1 if none): 2
+Sender: Ack received for frame 2
+Enter received frame number (or -1 if lost): 3
+Receiver: Received frame 3
+Receiver: Ack sent for frame 3
+Enter ack number received by sender (-1 if none): -1
+Enter received frame number (or -1 if lost): 1
+Receiver: Received frame 1
+Receiver: Ack sent for frame 1
+Enter ack number received by sender (-1 if none): 1
+Sender: Ack received for frame 1
+Sender: Sent frame 4
+Enter received frame number (or -1 if lost): 4
+Receiver: Received frame 4
+Receiver: Ack sent for frame 4
+Enter ack number received by sender (-1 if none): 4
+Sender: Ack received for frame 4
+All frames sent and acknowledged!
